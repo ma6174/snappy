@@ -3,7 +3,7 @@
 ### How to get
 
 ```
-go get -v -u github.com/ma6174/snappy
+go get -v github.com/ma6174/snappy
 ```
 
 ### How to use
