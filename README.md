@@ -1,5 +1,8 @@
 # snappy command line tool
 
+[![Build Status](https://travis-ci.org/ma6174/snappy.svg?branch=master)](https://travis-ci.org/ma6174/snappy)
+
+
 ### How to get
 
 ```
