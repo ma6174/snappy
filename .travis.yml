@@ -6,5 +6,5 @@ go:
     - tip
 script:
     - go version
-    - go get -v -u -f github.com/ma6174/snappy
+    - go get -v -u github.com/ma6174/snappy
     - snappy -h

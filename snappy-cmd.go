@@ -98,6 +98,14 @@ func do(isDecompress bool, filename, suffix string, isToStdout bool) (percentage
 	return
 }
 
+var helpMsg = `
+SYNOPSIS
+  snappy [-dcvh] [-s suffix] file [file [...]]
+  cat file | snappy [-dcv]
+
+OPTIONS:
+`
+
 func main() {
 	var (
 		isDecompress = flag.Bool("d", false, "Decompress")
@@ -106,6 +114,12 @@ func main() {
 		Suffix       = flag.String("s", ".snappy", "output filename suffix")
 		files        []string
 	)
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
+		fmt.Fprint(os.Stderr, helpMsg)
+		flag.PrintDefaults()
+		os.Exit(0)
+	}
 	flag.Parse()
 	if flag.NArg() == 0 {
 		files = []string{"-"}
