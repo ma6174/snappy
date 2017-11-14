@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cheggaaa/pb"
 	"github.com/golang/snappy"
 )
 
@@ -43,12 +44,26 @@ func NewRWCounter(r io.Reader, w io.Writer) *RWCounter {
 	}
 }
 
-func do(isDecompress bool, filename, suffix string, isToStdout bool) (percentage, speed float64, err error) {
+func do(isDecompress bool, filename, suffix string, isToStdout bool, bufferSize int, isVerbose bool) (percentage, speed float64, err error) {
 	var (
 		input   io.Reader
 		output  io.Writer
 		outName string = "-"
+		bar     *pb.ProgressBar
 	)
+
+	{
+		bar = pb.New64(0)
+		bar.ShowFinalTime = true
+		bar.ShowPercent = true
+		bar.ShowSpeed = true
+		bar.ShowTimeLeft = true
+		bar.ShowCounters = true
+		bar.Output = os.Stderr
+		bar.SetMaxWidth(80)
+		bar.SetUnits(pb.U_BYTES)
+	}
+
 	if filename == "-" {
 		input = os.Stdin
 		output = os.Stdout
@@ -59,6 +74,14 @@ func do(isDecompress bool, filename, suffix string, isToStdout bool) (percentage
 		}
 		input = fi
 		defer fi.Close()
+
+		if isVerbose {
+			info, err := os.Stat(filename)
+			if err != nil {
+				return 0, 0, err
+			}
+			bar.Total = info.Size()
+		}
 
 		if isToStdout {
 			output = os.Stdout
@@ -80,12 +103,19 @@ func do(isDecompress bool, filename, suffix string, isToStdout bool) (percentage
 			defer fo.Close()
 		}
 	}
+
+	if isVerbose {
+		bar.Start()
+		defer bar.Finish()
+	}
+
 	start := time.Now()
-	rwc := NewRWCounter(input, output)
+	rwc := NewRWCounter(bar.NewProxyReader(input), output)
+	buf := make([]byte, bufferSize)
 	if isDecompress {
-		_, err = io.Copy(rwc, snappy.NewReader(rwc))
+		_, err = io.CopyBuffer(rwc, snappy.NewReader(rwc), buf)
 	} else {
-		_, err = io.Copy(snappy.NewWriter(rwc), rwc)
+		_, err = io.CopyBuffer(snappy.NewWriter(rwc), rwc, buf)
 	}
 	useTime := time.Since(start).Seconds()
 	if isDecompress {
@@ -112,6 +142,7 @@ func main() {
 		isToStdout   = flag.Bool("c", false, "Write  output  on standard output")
 		isVerbose    = flag.Bool("v", false, "verbose display for name and percentage reduction and speed")
 		Suffix       = flag.String("s", ".snappy", "output filename suffix")
+		BufferSize   = flag.Int("b", 128, "buffer size for copy(KB)")
 		files        []string
 	)
 	flag.Usage = func() {
@@ -127,7 +158,7 @@ func main() {
 		files = flag.Args()
 	}
 	for _, filename := range files {
-		percentage, speed, err := do(*isDecompress, filename, *Suffix, *isToStdout)
+		percentage, speed, err := do(*isDecompress, filename, *Suffix, *isToStdout, *BufferSize*1024, *isVerbose)
 		if err != nil {
 			log.Printf("%s compress failed", err)
 			continue
